@@ -9,7 +9,7 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S')
 
 # GLOBAL PARAMETERS FOR STOCHASTIC GRADIENT DESCENT
-step_size=0.0001
+step_size=1
 max_iters=1000
 
 def main():
@@ -68,27 +68,29 @@ def main():
 
 
 def dummyAugment(X):
-  ones = np.ones((X.shape[1]))
-  return ones + X
+  ones = np.ones((X.shape[0]))
+  return np.insert(X, 0, ones,axis=1)
 
-
+def sigma(w, xi):
+  return 1 / (1 + np.exp(- w.T @ xi))
 
 def calculateNegativeLogLikelihood(X,y,w):
   total = 0
+  epsilon = 0.00001
   for i in range(0, len(y)):
-    # yi * -log(1 + e^-w^T*xi)
-    first_term = y[i] * -np.log(1 + np.exp(-(np.transpose(w) * X[i])))
-    # log( 1 - (1/1+e^-w^Txi)) = -w^Txi - log(1 + e^-w^Txi)
-    second_term = (1 - y[i]) * -(np.transpose(w)*X[i] + np.log(1 + np.exp(-(np.transpose(w) * X[i]))))
+    first_term = y[i] @ np.log(sigma(w, X[i]) + epsilon)
+    second_term = (1 - y[i]).T * np.log(1 - sigma(w, X[i]) + epsilon)
+
     total += first_term + second_term
-
-  #print(total)
-  return np.transpose(total)
-  #return total
-
-
-  #raise Exception('Student error: You haven\'t implemented the negative log likelihood calculation yet.')
+  
+  return -total
  
+
+def gradient(X, y, w):
+    total = 0
+    for i in range(0, len(y)):
+        total += (sigma(w, X[i]) - y[i]) * X[i]
+    return np.transpose(np.array([total]))
 
 def trainLogistic(X,y, max_iters=max_iters, step_size=step_size):
 
@@ -109,7 +111,8 @@ def trainLogistic(X,y, max_iters=max_iters, step_size=step_size):
         # . Implement equation 9.
         # .
      
-        w_grad = calculateNegativeLogLikelihood(X,y,w)
+        
+        w_grad = gradient(X,y,w)
 
         # This is here to make sure your gradient is the right shape
         assert(w_grad.shape == (X.shape[1],1))
